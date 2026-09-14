@@ -100,8 +100,22 @@ juce::AudioParameterChoice& createModeParameter(juce::AudioProcessor& processor)
         std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID{"fuzz.mode", versionHint},
             "Mode",
-            juce::StringArray{"Triangle", "Rams Head", "Russian", "NYC"},
+            juce::StringArray{"Fuzz", "Tube", "Cream", "Hard"},
             0 // default: Triangle
+        )
+    );
+}
+
+juce::AudioParameterBool& createOversamplingParameter(juce::AudioProcessor& processor)
+{
+    constexpr int versionHint = 1;
+
+    return addParameterToProcessor(
+        processor,
+        std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{"fuzz.oversampling", versionHint},
+            "Oversampling",
+            false
         )
     );
 }
@@ -116,7 +130,8 @@ Parameters::Parameters(juce::AudioProcessor& processor)
       tone{createToneParameter(processor)},
       outputLevel{createOutputLevelParameter(processor)},
       bypassed{createBypassedParameter(processor)},
-      mode{createModeParameter(processor)}
+      mode{createModeParameter(processor)},
+      oversampling{createOversamplingParameter(processor)}
 {
 }
 

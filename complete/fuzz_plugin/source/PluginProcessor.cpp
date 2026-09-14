@@ -44,7 +44,11 @@ bool PluginProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 void PluginProcessor::prepareToPlay(double sampleRate,
                                     int expectedMaxFramesPerBlock)
 {
+
     currentSampleRate = sampleRate;
+
+    engine.setMode(0);
+
 
     engine.prepare(sampleRate, expectedMaxFramesPerBlock);
 
@@ -61,6 +65,7 @@ void PluginProcessor::prepareToPlay(double sampleRate,
     };
 
     bypassTransitionSmoother.prepare(spec);
+
 
 
 }
@@ -87,8 +92,27 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     engine.setSustain(parameters.sustain.get());
     engine.setTone(parameters.tone.get());
     engine.setOutputLevel(parameters.outputLevel.get());
-    engine.setMode(parameters.mode.getIndex());
 
+
+    int mode = parameters.mode.getIndex();
+
+    if (mode != lastMode)
+    {
+        engine.setMode(mode);                     // switch DSP engine
+        engine.prepare(getSampleRate(), getBlockSize());  // re-init DSP
+        lastMode = mode;
+    }
+
+    //engine.setMode(parameters.mode.getIndex());
+
+    // Oversampling
+    bool os = parameters.oversampling.get();
+
+    if (os != engine.isOversamplingEnabled)
+    {
+        engine.setOversampling(os);
+        engine.prepare(getSampleRate(), getBlockSize());
+    }
     // Bypass smoothing
     const bool bypassed = parameters.bypassed.get();
     bypassTransitionSmoother.setBypass(bypassed);

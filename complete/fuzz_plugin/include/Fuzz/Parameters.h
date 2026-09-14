@@ -10,6 +10,8 @@ struct Parameters {
   juce::AudioParameterFloat& outputLevel;   // Final output gain
   juce::AudioParameterBool& bypassed;       // Bypass state
   juce::AudioParameterChoice& mode;         // Triangle / Rams Head / Russian / NYC
+  juce::AudioParameterBool& oversampling;
+
 
   JUCE_DECLARE_NON_COPYABLE(Parameters)
   JUCE_DECLARE_NON_MOVEABLE(Parameters)

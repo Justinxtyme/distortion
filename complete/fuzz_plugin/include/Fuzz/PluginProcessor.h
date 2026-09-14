@@ -41,10 +41,15 @@ public:
   double getSampleRateThreadSafe() const noexcept;
 
 private:
+
   Parameters parameters{*this};
   FuzzEngine engine;
   BypassTransitionSmoother bypassTransitionSmoother;
   std::atomic<double> currentSampleRate{0.};
+  
+  std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
+
+  int lastMode { 0 };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

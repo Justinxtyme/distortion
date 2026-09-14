@@ -1,4 +1,4 @@
-
+//
 // namespace fuzz {
 //
 // PluginEditor::PluginEditor(PluginProcessor& p)
@@ -44,6 +44,7 @@
 //     bypassLabel.setJustificationType(juce::Justification::centred);
 //     addAndMakeVisible(bypassLabel);
 //
+//
 //     setSize(400, 200);
 // }
 //
@@ -67,6 +68,9 @@
 //     // Bypass centered at bottom
 //     bypassLabel.setBounds(bottomRow.removeFromTop(20));
 //     bypassButton.setBounds(bottomRow.withSizeKeepingCentre(80, 30));
+//
+//     modeSelector.setBounds(20, 20, 120, 30);
+//
 // }
 //
 // } // namespace fuzz

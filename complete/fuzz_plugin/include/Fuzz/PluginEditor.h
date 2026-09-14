@@ -67,6 +67,11 @@ private:
     juce::ToggleButton bypassButton;
     juce::Label bypassLabel;
 
+    juce::ComboBox modeSelector;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
+
+    juce::ToggleButton oversamplingButton;
+
     SliderAttachment sustainAttachment;
     SliderAttachment toneAttachment;
     SliderAttachment levelAttachment;
@@ -118,33 +123,80 @@ PluginEditor::PluginEditor(PluginProcessor& p)
     bypassButton.setButtonText("Bypass");
     addAndMakeVisible(bypassButton);
 
-    bypassLabel.setText("Bypass", juce::dontSendNotification);
+    //bypassLabel.setText("Bypass", juce::dontSendNotification);
     bypassLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(bypassLabel);
 
-    setSize(600, 200);
+    modeSelector.addItem("Fuzz", 1);
+    modeSelector.addItem("Tube", 2);
+    modeSelector.addItem("Cream", 3);
+    modeSelector.addItem("Hard", 4);
+
+    modeSelector.setSelectedId(1);
+
+    addAndMakeVisible(modeSelector);
+
+    // Bind UI → Processor parameter
+    modeSelector.onChange = [this]
+    {
+        auto& params = processor.getParameterRefs();
+        params.mode.setValueNotifyingHost(static_cast<float>(modeSelector.getSelectedId() - 1));
+    };
+
+    oversamplingButton.setButtonText("Oversampling");
+    //oversamplingButton.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(oversamplingButton);
+
+
+    oversamplingButton.onClick = [this]
+    {
+        auto& params = processor.getParameterRefs();
+        params.oversampling.setValueNotifyingHost(oversamplingButton.getToggleState());
+    };
+
+
+    setSize(650, 250);
 }
 
-void PluginEditor::resized()
+    void PluginEditor::resized()
 {
     auto area = getLocalBounds().reduced(20);
 
-    auto topRow = area.removeFromTop(100);
-    auto bottomRow = area;
+    // === Top row: 3 vertical columns ===
+    auto topRow = area.removeFromTop(120);   // slightly taller to fit label + knob
+    auto colWidth = topRow.getWidth() / 3;
 
-    // Three knobs across the top
-    sustainLabel.setBounds(topRow.removeFromLeft(100).removeFromTop(20));
-    sustainSlider.setBounds(topRow.removeFromLeft(100));
+    auto sustainArea = topRow.removeFromLeft(colWidth);
+    auto toneArea    = topRow.removeFromLeft(colWidth);
+    auto levelArea   = topRow.removeFromLeft(colWidth);
 
-    toneLabel.setBounds(topRow.removeFromLeft(100).removeFromTop(20));
-    toneSlider.setBounds(topRow.removeFromLeft(100));
+    // Sustain column
+    sustainLabel.setBounds(sustainArea.removeFromTop(20));
+    sustainSlider.setBounds(sustainArea);
 
-    levelLabel.setBounds(topRow.removeFromLeft(100).removeFromTop(20));
-    levelSlider.setBounds(topRow.removeFromLeft(100));
+    // Tone column
+    toneLabel.setBounds(toneArea.removeFromTop(20));
+    toneSlider.setBounds(toneArea);
 
-    // Bypass centered at bottom
-    bypassLabel.setBounds(bottomRow.removeFromTop(20));
-    bypassButton.setBounds(bottomRow.withSizeKeepingCentre(80, 30));
+    // Level column
+    levelLabel.setBounds(levelArea.removeFromTop(20));
+    levelSlider.setBounds(levelArea);
+
+    // === Middle row: Mode selector ===
+    auto modeRow = area.removeFromTop(50);
+    modeSelector.setBounds(modeRow.withSizeKeepingCentre(140, 30));
+
+    // === Bottom row: Oversampling + Bypass (vertical stack) ===
+    auto oversamplingArea = area.removeFromTop(50);
+    //oversamplingLabel.setBounds(oversamplingArea.removeFromTop(20));
+    oversamplingButton.setBounds(oversamplingArea.withSizeKeepingCentre(100, 30));
+
+    auto bypassArea = area.removeFromTop(50);
+    //bypassLabel.setBounds(bypassArea.removeFromTop(20));
+    bypassButton.setBounds(bypassArea.withSizeKeepingCentre(100, 30));
 }
+
+
+
 
 } // namespace fuzz
