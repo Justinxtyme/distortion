@@ -63,8 +63,8 @@ juce::AudioParameterFloat& createOutputLevelParameter(juce::AudioProcessor& proc
         std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"fuzz.output", versionHint},
             "Output Level",
-            juce::NormalisableRange<float>{0.0f, 1.5f, 0.001f},
-            0.75f,
+            juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f},
+            1.0f,
             juce::AudioParameterFloatAttributes{}.withLabel("x")
         )
     );
@@ -135,6 +135,8 @@ Parameters::Parameters(juce::AudioProcessor& processor)
 {
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 
 

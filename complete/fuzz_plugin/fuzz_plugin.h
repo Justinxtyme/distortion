@@ -40,7 +40,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "include/Fuzz/detail/StridedQueue.h"
 
-#include "include/Fuzz/Parameters.h"
+//#include "include/Fuzz/Parameters.h"
 // #include "include/Fuzz/CustomLookAndFeel.h"
 #include "include/Fuzz/JsonSerializer.h"
 #include "include/Fuzz/LfoVisualizer.h"

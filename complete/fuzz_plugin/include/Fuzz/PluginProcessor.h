@@ -33,8 +33,12 @@ public:
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
 
-  [[nodiscard]] Parameters& getParameterRefs() noexcept;
+
+  //[[nodiscard]] Parameters& getParameterRefs() noexcept;
   juce::AudioProcessorParameter* getBypassParameter() const noexcept override;
+
+  juce::AudioProcessorValueTreeState apvts;
+  juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
   /** @brief Retrieves the most recent sample rate the processor was given
    * in a thread-safe manner */
@@ -42,14 +46,14 @@ public:
 
 private:
 
-  Parameters parameters{*this};
+  //Parameters parameters{*this};
   FuzzEngine engine;
   BypassTransitionSmoother bypassTransitionSmoother;
   std::atomic<double> currentSampleRate{0.};
   
   std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
 
-  int lastMode { 0 };
+  int lastMode{ 0 };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

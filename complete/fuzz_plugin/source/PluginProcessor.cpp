@@ -1,11 +1,13 @@
 
 namespace fuzz {
 
+
 PluginProcessor::PluginProcessor()
-    : AudioProcessor(
-        BusesProperties()
-            .withInput ("Input",  juce::AudioChannelSet::stereo(), true)
-            .withOutput("Output", juce::AudioChannelSet::stereo(), true))
+: AudioProcessor(
+    BusesProperties()
+        .withInput ("Input",  juce::AudioChannelSet::stereo(), true)
+        .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+        apvts(*this, nullptr, "PARAMETERS", createParameterLayout())
 {
 }
 
@@ -76,7 +78,62 @@ void PluginProcessor::releaseResources()
     bypassTransitionSmoother.reset();
 }
 
-void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+// void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+//                                    juce::MidiBuffer& midi)
+// {
+//     juce::ignoreUnused(midi);
+//     juce::ScopedNoDenormals noDenormals;
+//
+//     const int totalIn  = getTotalNumInputChannels();
+//     const int totalOut = getTotalNumOutputChannels();
+//
+//     for (int ch = totalIn; ch < totalOut; ++ch)
+//         buffer.clear(ch, 0, buffer.getNumSamples());
+//
+//     // Update engine parameters from current values
+//     engine.setSustain(parameters.sustain.get());
+//     engine.setTone(parameters.tone.get());
+//     engine.setOutputLevel(parameters.outputLevel.get());
+//
+//
+//     int mode = parameters.mode.getIndex();
+//
+//     if (mode != lastMode)
+//     {
+//         engine.setMode(mode);                     // switch DSP engine
+//         engine.prepare(getSampleRate(), getBlockSize());  // re-init DSP
+//         lastMode = mode;
+//     }
+//
+//     //engine.setMode(parameters.mode.getIndex());
+//
+//     // Oversampling
+//     bool os = parameters.oversampling.get();
+//
+//     if (os != engine.isOversamplingEnabled)
+//     {
+//         engine.setOversampling(os);
+//         engine.prepare(getSampleRate(), getBlockSize());
+//     }
+//     // Bypass smoothing
+//     const bool bypassed = parameters.bypassed.get();
+//     bypassTransitionSmoother.setBypass(bypassed);
+//
+//     const bool fullyBypassed = bypassed && !bypassTransitionSmoother.isTransitioning();
+//     if (fullyBypassed)
+//         return;
+//
+//     // Store dry buffer for crossfade
+//     bypassTransitionSmoother.setDryBuffer(buffer);
+//
+//     // Process fuzz
+//     engine.process(buffer);
+//
+//     // Crossfade wet/dry according to bypass transition
+//     bypassTransitionSmoother.mixToWetBuffer(buffer);
+// }
+
+    void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                    juce::MidiBuffer& midi)
 {
     juce::ignoreUnused(midi);
@@ -88,33 +145,50 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     for (int ch = totalIn; ch < totalOut; ++ch)
         buffer.clear(ch, 0, buffer.getNumSamples());
 
-    // Update engine parameters from current values
-    engine.setSustain(parameters.sustain.get());
-    engine.setTone(parameters.tone.get());
-    engine.setOutputLevel(parameters.outputLevel.get());
+    // ============================
+    // Read APVTS parameters (atomic)
+    // ============================
+    const float sustain = *apvts.getRawParameterValue("fuzz.sustain");
+    const float tone    = *apvts.getRawParameterValue("fuzz.tone");
+    const float level   = *apvts.getRawParameterValue("fuzz.output");
 
+    const bool bypassed = apvts.getRawParameterValue("fuzz.bypassed")->load();
+    const bool os       = apvts.getRawParameterValue("fuzz.oversampling")->load();
 
-    int mode = parameters.mode.getIndex();
+    float mode      = apvts.getRawParameterValue("fuzz.mode")->load();
 
+    // ============================
+    // Mode switching (re-init DSP)
+    // ============================
     if (mode != lastMode)
     {
-        engine.setMode(mode);                     // switch DSP engine
-        engine.prepare(getSampleRate(), getBlockSize());  // re-init DSP
+        engine.setMode(mode);
+        engine.prepare(getSampleRate(), getBlockSize());
         lastMode = mode;
     }
 
-    //engine.setMode(parameters.mode.getIndex());
 
-    // Oversampling
-    bool os = parameters.oversampling.get();
+    // ============================
+    // Push parameters into DSP engine
+    // ============================
+    engine.setSustain(sustain);
+    engine.setTone(tone);
+    engine.setOutputLevel(level);
 
+
+
+    // ============================
+    // Oversampling toggle (re-init DSP)
+    // ============================
     if (os != engine.isOversamplingEnabled)
     {
         engine.setOversampling(os);
         engine.prepare(getSampleRate(), getBlockSize());
     }
+
+    // ============================
     // Bypass smoothing
-    const bool bypassed = parameters.bypassed.get();
+    // ============================
     bypassTransitionSmoother.setBypass(bypassed);
 
     const bool fullyBypassed = bypassed && !bypassTransitionSmoother.isTransitioning();
@@ -124,12 +198,17 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // Store dry buffer for crossfade
     bypassTransitionSmoother.setDryBuffer(buffer);
 
-    // Process fuzz
+    // ============================
+    // Process fuzz engine
+    // ============================
     engine.process(buffer);
 
-    // Crossfade wet/dry according to bypass transition
+    // ============================
+    // Crossfade wet/dry
+    // ============================
     bypassTransitionSmoother.mixToWetBuffer(buffer);
 }
+
 
 bool PluginProcessor::hasEditor() const {
     return true;
@@ -141,33 +220,64 @@ juce::AudioProcessorEditor* PluginProcessor::createEditor() {
 
 void PluginProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    juce::MemoryOutputStream out(destData, true);
-    JsonSerializer::serialize(parameters, out);
+    auto state = apvts.copyState();
+    std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    copyXmlToBinary(*xml, destData);
 }
 
 void PluginProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    juce::MemoryInputStream in(data, static_cast<size_t>(sizeInBytes), false);
-    const auto result = JsonSerializer::deserialize(in, parameters);
+    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
-    if (result.failed())
-        DBG(result.getErrorMessage());
-
-    // Ensure bypass smoother matches restored bypass state
-    bypassTransitionSmoother.setBypassForced(parameters.bypassed.get());
+    if (xmlState != nullptr)
+        if (xmlState->hasTagName(apvts.state.getType()))
+            apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
 }
 
-Parameters& PluginProcessor::getParameterRefs() noexcept {
-    return parameters;
-}
 
 juce::AudioProcessorParameter* PluginProcessor::getBypassParameter() const noexcept {
-    return &parameters.bypassed;
+    return apvts.getParameter("fuzz.bypassed");
 }
 
 double PluginProcessor::getSampleRateThreadSafe() const noexcept {
     return currentSampleRate.load();
 }
+
+juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLayout()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "fuzz.sustain", "Sustain",
+        juce::NormalisableRange<float>{0.1f, 3.0f, 0.0f},
+        1.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "fuzz.tone", "Tone",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f},
+        0.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "fuzz.output", "Output Level",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f},
+        1.0f));
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "fuzz.bypassed", "Bypass",
+        false));
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "fuzz.oversampling", "Oversampling",
+        false));
+
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "fuzz.mode", "Mode",
+        juce::StringArray{"Fuzz", "Tube", "Cream", "Hard"},
+        0));
+
+    return { params.begin(), params.end() };
+}
+
 
 } // namespace fuzz
 

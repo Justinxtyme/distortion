@@ -57,7 +57,10 @@ include(cmake/CompilerWarnings.cmake)
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   # Sets the Windows VST3 installation location to one
   # that doesn't require elevated permissions
-  set_directory_properties(PROPERTIES JUCE_VST3_COPY_DIR "$ENV{LOCALAPPDATA}/Programs/Common/VST3")
+  #set_directory_properties(PROPERTIES JUCE_VST3_COPY_DIR "$ENV{LOCALAPPDATA}/Programs/Common/VST3")
+  #set_directory_properties(PROPERTIES JUCE_VST3_COPY_DIR "$ENV{ProgramFiles}/Common Files/VST3")
+  set_directory_properties(PROPERTIES JUCE_VST3_COPY_DIR "C:/Program Files/Common Files/VST3")
+
 endif()
 
 # Adds a plugin target.
